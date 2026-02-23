@@ -1,0 +1,40 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-green-deep: #1a2e1a;
+  --color-brand-green-leaf: #2d5a27;
+  --color-brand-earth-ochre: #b48c4d;
+  --color-brand-stone-gray: #4a5568;
+  --color-brand-sky-blue: #a0c4ff;
+
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-serif: "Outfit", serif;
+  --font-display: "Montserrat", sans-serif;
+}
+
+:root {
+  font-family: var(--font-sans);
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: #0f172a;
+  /* Dark base for nature theme */
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background-image:
+    radial-gradient(at 0% 0%, hsla(120, 20%, 15%, 1) 0, transparent 50%),
+    radial-gradient(at 50% 0%, hsla(30, 10%, 10%, 1) 0, transparent 50%),
+    radial-gradient(at 100% 0%, hsla(210, 20%, 15%, 1) 0, transparent 50%);
+  background-attachment: fixed;
+}
