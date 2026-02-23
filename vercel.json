@@ -1,8 +1,8 @@
 {
     "version": 2,
     "framework": null,
-    "buildCommand": "mkdir -p .output && cp -r . .output",
-    "outputDirectory": ".output",
+    "buildCommand": "mkdir -p build && cp -r assets src index.html build/",
+    "outputDirectory": "build",
     "installCommand": "echo 'Instalação pulada'",
     "rewrites": [
         {
