@@ -40,10 +40,7 @@
           <div class="hero-stat-value" id="stat-attractions">0</div>
           <div class="hero-stat-label">Atrações</div>
         </div>
-        <div class="hero-stat">
-          <div class="hero-stat-value" id="stat-origin-label">BSB</div>
-          <div class="hero-stat-label">Origem</div>
-        </div>
+
         <div class="hero-stat hero-stat-cost">
           <div class="hero-stat-value" id="stat-cost-pp">R$ 0</div>
           <div class="hero-stat-label">💰 Por Pessoa</div>
@@ -59,23 +56,19 @@
         <div class="settings-grid">
           <div class="settings-group">
             <label for="input-origin">🛫 Local de Partida</label>
-            <input type="text" id="input-origin" value="Aeroporto de Brasília (BSB)" placeholder="Ex: Aeroporto BSB">
+            <input type="text" id="input-origin" value="" placeholder="Ex: Aeroporto BSB">
           </div>
           <div class="settings-group">
             <label for="input-start-date">📅 Ida</label>
-            <input type="date" id="input-start-date" value="2026-05-30">
+            <input type="date" id="input-start-date" value="">
           </div>
           <div class="settings-group">
             <label for="input-end-date">📅 Volta</label>
-            <input type="date" id="input-end-date" value="2026-06-07">
+            <input type="date" id="input-end-date" value="">
           </div>
           <div class="settings-group">
-            <label for="input-adults">👤 Adultos</label>
-            <input type="number" id="input-adults" value="4" min="1">
-          </div>
-          <div class="settings-group">
-            <label for="input-children">👶 Crianças</label>
-            <input type="number" id="input-children" value="0" min="0">
+            <label for="input-travelers">👤 Viajantes</label>
+            <input type="number" id="input-travelers" value="4" min="1">
           </div>
           <div class="settings-group" style="display: flex; align-items: flex-end;">
             <button id="apply-settings" class="apply-btn">Atualizar Roteiro</button>
@@ -203,7 +196,35 @@
     </div>
   </div>
 
-  <!-- Leaflet JS -->
+  <!-- ADD TO ITINERARY MODAL -->
+  <div class="modal-overlay" id="addModalOverlay" style="z-index: 10000; display: none;">
+    <div class="modal" id="addModalContent" style="max-width: 400px; padding: 24px;">
+      <button class="modal-close" id="addModalClose" style="top: 15px; right: 15px;">✕</button>
+      <h3 style="margin-top: 0; margin-bottom: 16px;">➕ Adicionar ao Roteiro</h3>
+      <p style="margin-bottom: 16px; font-size: 0.9rem; color: var(--text-muted);" id="addModalAttractionName"></p>
+
+      <div style="margin-bottom: 16px;">
+        <label for="addModalDay"
+          style="display: block; font-weight: 600; font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px;">Qual
+          dia?</label>
+        <select id="addModalDay" class="form-select"></select>
+      </div>
+
+      <div style="margin-bottom: 24px;">
+        <label for="addModalPeriod"
+          style="display: block; font-weight: 600; font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px;">Qual
+          período?</label>
+        <select id="addModalPeriod" class="form-select">
+          <option value="morning">Manhã (08h - 13h)</option>
+          <option value="afternoon">Tarde (13h - 18h)</option>
+          <option value="night">Noite (Livre)</option>
+        </select>
+      </div>
+
+      <button id="addModalConfirm" class="apply-btn">Confirmar</button>
+    </div>
+  </div>
+
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="src/data/data.js"></script>
   <script src="src/js/app.js"></script>

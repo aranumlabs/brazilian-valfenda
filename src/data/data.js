@@ -3,32 +3,25 @@
 // Base de dados completa com coordenadas reais, imagens, locadoras, hotéis
 // ============================================================================
 
-const TRIP_CONFIG = {
-        startDate: '2026-05-30',
-        endDate: '2026-06-07',
-        adults: 4,
-        children: 0,
-        travelers: 4,
-        couples: 2,
-        origin: 'Aeroporto de Brasília (BSB)',
-        distanceBSBtoCavalcante: 322,
-        distanceBSBtoAltoParaiso: 235,
-        distanceBSBtoSaoJorge: 270,
-        distanceCavalcanteToAltoParaiso: 90,
-        distanceAltoParaisoToSaoJorge: 36,
-};
+const TRIP_CONFIG = (function () {
+        const today = new Date();
+        const nextWeek = new Date(today);
+        nextWeek.setDate(today.getDate() + 7);
+        return {
+                startDate: today.toISOString().split('T')[0],
+                endDate: nextWeek.toISOString().split('T')[0],
+                travelers: 4,
+                couples: 2,
+                origin: '',
+                distanceBSBtoCavalcante: 322,
+                distanceBSBtoAltoParaiso: 235,
+                distanceBSBtoSaoJorge: 270,
+                distanceCavalcanteToAltoParaiso: 90,
+                distanceAltoParaisoToSaoJorge: 36,
+        };
+})();
 
-let TRIP_DAYS = [
-        { date: '2026-05-30', label: '30/05', weekday: 'Sáb', base: 'Alto Paraíso' },
-        { date: '2026-05-31', label: '31/05', weekday: 'Dom', base: 'Alto Paraíso' },
-        { date: '2026-06-01', label: '01/06', weekday: 'Seg', base: 'Cavalcante' },
-        { date: '2026-06-02', label: '02/06', weekday: 'Ter', base: 'Cavalcante' },
-        { date: '2026-06-03', label: '03/06', weekday: 'Qua', base: 'Cavalcante' },
-        { date: '2026-06-04', label: '04/06', weekday: 'Qui', base: 'Alto Paraíso' },
-        { date: '2026-06-05', label: '05/06', weekday: 'Sex', base: 'Alto Paraíso' },
-        { date: '2026-06-06', label: '06/06', weekday: 'Sáb', base: 'Alto Paraíso' },
-        { date: '2026-06-07', label: '07/06', weekday: 'Dom', base: 'Retorno' },
-];
+let TRIP_DAYS = [];
 
 function getDurationSlots(duration) {
         const d = duration.toLowerCase();
@@ -1576,7 +1569,6 @@ const CAR_OPTIONS = [
                 name: 'VW T-Cross 1.0 Turbo ou similar',
                 type: 'Grupo GX - SUV Compacto',
                 dailyRate: 254.03375,
-                totalDays: 8,
                 rental: 'Localiza',
                 features: [
                         'Proteção Total Incluída',

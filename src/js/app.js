@@ -22,6 +22,25 @@
   const $ = (s) => document.querySelector(s);
   const $$ = (s) => document.querySelectorAll(s);
 
+  // JSONP Helper to avoid CORS issues on localhost
+  function jsonp(url) {
+    return new Promise((resolve, reject) => {
+      const callbackName = 'jsonp_callback_' + Math.round(100000 * Math.random());
+      window[callbackName] = function (data) {
+        delete window[callbackName];
+        const script = document.getElementById(callbackName);
+        if (script) document.body.removeChild(script);
+        resolve(data);
+      };
+
+      const script = document.createElement('script');
+      script.id = callbackName;
+      script.src = url + (url.indexOf('?') >= 0 ? '&' : '?') + 'json_callback=' + callbackName;
+      script.onerror = () => reject(new Error('JSONP request failed'));
+      document.body.appendChild(script);
+    });
+  }
+
   // Region colors for map markers
   const REGION_COLORS = {
     'Cavalcante': '#e67e22',
@@ -36,7 +55,13 @@
   function init() {
     const hasSavedState = loadState();
 
+    if (!hasSavedState) {
+      regenerateTripDays(TRIP_CONFIG.startDate, TRIP_CONFIG.endDate);
+    }
+
     setupTripSettings();
+    setupNominatimAutocomplete();
+
     renderLeafletMap();
     renderKanban();
     renderAttractions();
@@ -56,13 +81,170 @@
   }
 
   // ========================================================================
+  // NOMINATIM AUTOCOMPLETE (OSM Alternative with JSONP Support)
+  // ========================================================================
+  function setupNominatimAutocomplete() {
+    const originInput = $('#input-origin');
+    if (!originInput) return;
+
+    // Create dropdown container
+    const dropdown = document.createElement('div');
+    dropdown.id = 'autocomplete-results';
+    dropdown.className = 'autocomplete-dropdown';
+    originInput.parentNode.appendChild(dropdown);
+
+    let debounceTimer;
+
+    originInput.addEventListener('input', (e) => {
+      clearTimeout(debounceTimer);
+      const query = e.target.value;
+      if (query.length < 5) {
+        dropdown.classList.remove('active');
+        return;
+      }
+
+      debounceTimer = setTimeout(() => {
+        // Use Nominatim with JSONP callback to bypass CORS
+        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&addressdetails=1&countrycodes=br`;
+
+        jsonp(url)
+          .then(data => {
+            renderNominatimResults(data, dropdown, originInput);
+          })
+          .catch(err => {
+            console.error('Nominatim error (JSONP failed, trying fetch):', err);
+            // Fallback to fetch if JSONP fails
+            fetch(url)
+              .then(res => res.json())
+              .then(data => renderNominatimResults(data, dropdown, originInput))
+              .catch(fetchErr => console.error('Nominatim fetch error:', fetchErr));
+          });
+      }, 500);
+    });
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!originInput.contains(e.target) && !dropdown.contains(e.target)) {
+        dropdown.classList.remove('active');
+      }
+    });
+  }
+
+  function renderNominatimResults(results, dropdown, input) {
+    dropdown.innerHTML = '';
+    if (!results || results.length === 0) {
+      dropdown.classList.remove('active');
+      return;
+    }
+
+    const stateMap = {
+      'Acre': 'AC', 'Alagoas': 'AL', 'Amapá': 'AP', 'Amazonas': 'AM', 'Bahia': 'BA',
+      'Ceará': 'CE', 'Distrito Federal': 'DF', 'Espírito Santo': 'ES', 'Goiás': 'GO',
+      'Maranhão': 'MA', 'Mato Grosso': 'MT', 'Mato Grosso do Sul': 'MS', 'Minas Gerais': 'MG',
+      'Pará': 'PA', 'Paraíba': 'PB', 'Paraná': 'PR', 'Pernambuco': 'PE', 'Piauí': 'PI',
+      'Rio de Janeiro': 'RJ', 'Rio Grande do Norte': 'RN', 'Rio Grande do Sul': 'RS',
+      'Rondônia': 'RO', 'Roraima': 'RR', 'Santa Catarina': 'SC', 'São Paulo': 'SP',
+      'Sergipe': 'SE', 'Tocantins': 'TO'
+    };
+
+    results.forEach(res => {
+      const addr = res.address || {};
+      const city = addr.city || addr.town || addr.village || addr.municipality || addr.suburb || res.display_name.split(',')[0];
+      const stateAbbr = stateMap[addr.state] || (addr.state ? addr.state.substring(0, 2).toUpperCase() : '');
+      const hudLabel = stateAbbr ? `${city} - ${stateAbbr}` : city;
+
+      const label = res.display_name;
+
+      const item = document.createElement('div');
+      item.className = 'dropdown-item';
+      item.textContent = label;
+      item.addEventListener('click', () => {
+        input.value = label;
+        TRIP_CONFIG.origin = label; // Save the selected label to config
+        dropdown.classList.remove('active');
+        saveState(); // Save immediately after selection
+
+        // Update Origin Label in UI Stats
+        const originLabel = $('#stat-origin-label');
+        if (originLabel) {
+          originLabel.textContent = label.toLowerCase().includes('brasília') || label.toLowerCase().includes('bsb') ? 'BSB' : hudLabel;
+        }
+
+        const coords = { lat: parseFloat(res.lat), lng: parseFloat(res.lon) };
+        calculateDistancesToBases(coords);
+      });
+      dropdown.appendChild(item);
+    });
+
+    dropdown.classList.add('active');
+  }
+
+
+  function calculateDistancesToBases(origin) {
+    const destinations = [
+      { name: 'Cavalcante', lat: -13.7967, lng: -47.4569 },
+      { name: 'Alto Paraíso', lat: -14.1289, lng: -47.5129 },
+      { name: 'São Jorge', lat: -14.1747, lng: -47.6147 },
+    ];
+
+    // OSRM Table API is efficient for this
+    const coordsStr = `${origin.lng},${origin.lat};` + destinations.map(d => `${d.lng},${d.lat}`).join(';');
+    // We only need the first row (from origin to all destinations)
+    const url = `https://router.project-osrm.org/table/v1/driving/${coordsStr}?sources=0&destinations=1;2;3`;
+
+    fetch(url)
+      .then(res => res.json())
+      .then(data => {
+        if (data.code === 'Ok' && data.durations) {
+          // OSRM Table returns durations in seconds and distances are not direct in basic 'table' call
+          // For simple distance, we can use 'route' for each or estimate from duration (not ideal)
+          // Actually, let's use the 'route' API for more precision or check if 'table' can return distance
+          // Standard OSRM demo server 'table' doesn't always return distance. 
+          // Let's call 'route' for safer distance values if needed, or stick to a simpler approach.
+          // Wait, OSRM can return distances if requested: annotations=distance (available on some versions)
+
+          const distUrl = `https://router.project-osrm.org/table/v1/driving/${coordsStr}?sources=0&destinations=1;2;3&annotations=distance`;
+          return fetch(distUrl);
+        }
+        throw new Error('OSRM error');
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.code === 'Ok' && data.distances) {
+          const dists = data.distances[0]; // array from source 0
+          TRIP_CONFIG.originDistances = {
+            'Cavalcante': Math.round(dists[0] / 1000) || 322,
+            'Alto Paraíso': Math.round(dists[1] / 1000) || 235,
+            'São Jorge': Math.round(dists[2] / 1000) || 270,
+          };
+
+          saveState();
+          updateCalculators();
+
+          const applyBtn = $('#apply-settings');
+          if (applyBtn) {
+            const originalText = applyBtn.textContent;
+            applyBtn.textContent = '✅ Distâncias Atualizadas!';
+            setTimeout(() => applyBtn.textContent = originalText, 2000);
+          }
+        }
+      })
+      .catch(err => {
+        console.error('OSRM Distance error:', err);
+        // Fallback to defaults
+        TRIP_CONFIG.originDistances = { 'Cavalcante': 322, 'Alto Paraíso': 235, 'São Jorge': 270 };
+        updateCalculators();
+      });
+  }
+
+  // ========================================================================
   // TRIP SETTINGS
   // ========================================================================
   function setupTripSettings() {
     const startInput = $('#input-start-date');
     const endInput = $('#input-end-date');
-    const adultsInput = $('#input-adults');
-    const childrenInput = $('#input-children');
+    const travelersInput = $('#input-travelers');
+    const originInput = $('#input-origin');
     const applyBtn = $('#apply-settings');
 
     if (!startInput || !applyBtn) return;
@@ -70,28 +252,25 @@
     // Set initial values
     startInput.value = TRIP_CONFIG.startDate;
     endInput.value = TRIP_CONFIG.endDate;
-    adultsInput.value = TRIP_CONFIG.adults;
-    childrenInput.value = TRIP_CONFIG.children;
+    travelersInput.value = TRIP_CONFIG.travelers;
+    if (originInput) originInput.value = TRIP_CONFIG.origin || '';
 
-    applyBtn.addEventListener('click', () => {
+    function applySettings() {
       const start = startInput.value;
       const end = endInput.value;
-      const adults = parseInt(adultsInput.value) || 0;
-      const children = parseInt(childrenInput.value) || 0;
-      const origin = $('#input-origin').value || 'Brasília';
+      const travelers = parseInt(travelersInput.value) || 0;
+      const origin = $('#input-origin') ? $('#input-origin').value : '';
 
       if (new Date(start) > new Date(end)) {
-        alert('A data de ida não pode ser posterior à volta!');
+        // Just return, don't alert to avoid annoyance during typing
         return;
       }
 
       // Update Config
       TRIP_CONFIG.startDate = start;
       TRIP_CONFIG.endDate = end;
-      TRIP_CONFIG.adults = adults;
-      TRIP_CONFIG.children = children;
-      TRIP_CONFIG.origin = origin;
-      TRIP_CONFIG.travelers = adults + children;
+      TRIP_CONFIG.travelers = travelers;
+      TRIP_CONFIG.origin = origin; // Sync origin with input field
       TRIP_CONFIG.couples = Math.ceil(TRIP_CONFIG.travelers / 2);
 
       // Save to persistence
@@ -100,26 +279,27 @@
       // Update origin label in hero
       const originLabel = $('#stat-origin-label');
       if (originLabel) {
-        // Safe check for BSB to keep it short
-        originLabel.textContent = origin.toLowerCase().includes('brasília') || origin.toLowerCase().includes('bsb') ? 'BSB' : origin.substring(0, 10);
+        originLabel.textContent = origin ? (origin.toLowerCase().includes('brasília') || origin.toLowerCase().includes('bsb') ? 'BSB' : origin.substring(0, 15)) : '-';
       }
 
       // Regenerate Days
       regenerateTripDays(start, end);
-
-      // Reset kanban if days changed (or try to preserve - simplified: re-render)
-      // state.kanbanCards = {}; 
-      // state.attractionsInKanban = new Set();
 
       // Refresh UI
       renderKanban();
       updateCalculators();
       updateStats();
 
-      // Notify
-      applyBtn.textContent = '✅ Atualizado!';
-      setTimeout(() => applyBtn.textContent = 'Atualizar Roteiro', 2000);
-    });
+      if (applyBtn) {
+        applyBtn.textContent = '✅ Atualizado!';
+        setTimeout(() => applyBtn.textContent = 'Atualizar Roteiro', 2000);
+      }
+    }
+
+    startInput.addEventListener('change', applySettings);
+    endInput.addEventListener('change', applySettings);
+    travelersInput.addEventListener('change', applySettings);
+    if (applyBtn) applyBtn.addEventListener('click', applySettings);
   }
 
   function regenerateTripDays(startStr, endStr) {
@@ -140,8 +320,7 @@
       const day = current.getDate().toString().padStart(2, '0');
       const month = (current.getMonth() + 1).toString().padStart(2, '0');
 
-      let base = oldBases[dateStr] || (days.length < 4 ? 'Cavalcante' : 'Alto Paraíso');
-      if (current.getTime() === end.getTime()) base = 'Retorno';
+      let base = oldBases[dateStr] || 'Alto Paraíso';
 
       days.push({
         date: dateStr,
@@ -312,26 +491,7 @@
       if (addBtn) {
         addBtn.addEventListener('click', (e) => {
           e.stopPropagation();
-          // Find first available slot (dumb assignment for now, user can drag to fix)
-          let added = false;
-          for (const day of TRIP_DAYS) {
-            for (const period of PERIODS) {
-              const key = `${day.date}-${period.id}`;
-              const currentInSlot = state.kanbanCards[key] || [];
-              // Very basic check: add to first empty morning/afternoon slot
-              if (currentInSlot.length === 0 && !added) {
-                addToKanban(attr.id, day.date, period.id);
-                added = true;
-                // Scroll to kanban
-                document.getElementById('kanbanBoard').scrollIntoView({ behavior: 'smooth' });
-                break;
-              }
-            }
-            if (added) break;
-          }
-          if (!added) {
-            alert('Não foi possível achar um espaço vazio automático. Arraste a atração manualmente.');
-          }
+          showAddModal(attr);
         });
       }
 
@@ -477,6 +637,53 @@
     viewer.classList.add('active');
   }
 
+  function showAddModal(attr) {
+    const overlay = $('#addModalOverlay');
+    const nameEl = $('#addModalAttractionName');
+    const daySelect = $('#addModalDay');
+    const confirmBtn = $('#addModalConfirm');
+    const closeBtn = $('#addModalClose');
+
+    if (!overlay || !nameEl || !daySelect || !confirmBtn || !closeBtn) return;
+
+    nameEl.textContent = attr.name;
+
+    // Populate days
+    daySelect.innerHTML = '';
+    const weekdayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    TRIP_DAYS.forEach((day, index) => {
+      const d = new Date(day.date + 'T12:00:00'); // Midday to avoid timezone issues
+      const label = `${weekdayNames[d.getDay()]}, ${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')} - Dia ${index + 1}`;
+      const option = document.createElement('option');
+      option.value = day.date;
+      option.textContent = label;
+      daySelect.appendChild(option);
+    });
+
+    // Handle closing
+    const closeModal = () => {
+      overlay.style.display = 'none';
+      confirmBtn.onclick = null; // Clear old listener
+    };
+
+    closeBtn.onclick = closeModal;
+    overlay.onclick = (e) => {
+      if (e.target === overlay) closeModal();
+    };
+
+    // Handle confirm
+    confirmBtn.onclick = () => {
+      const selectedDay = daySelect.value;
+      const selectedPeriod = $('#addModalPeriod').value;
+
+      addToKanban(attr.id, selectedDay, selectedPeriod);
+      document.getElementById('kanbanBoard').scrollIntoView({ behavior: 'smooth' });
+      closeModal();
+    };
+
+    overlay.style.display = 'flex';
+  }
+
   // ========================================================================
   // KANBAN
   // ========================================================================
@@ -499,11 +706,9 @@
           <div class="kanban-date">${day.label}</div>
           <div class="kanban-base">
             📍 <select class="kanban-base-select" data-index="${index}" style="background:transparent; border:none; color:inherit; font-size:inherit; font-weight:inherit; cursor:pointer; outline:none; text-align:center; padding:0; margin:0; appearance:auto;">
-              <option style="color:black" value="Cavalcante" ${day.base === 'Cavalcante' ? 'selected' : ''}>Cavalcante</option>
               <option style="color:black" value="Alto Paraíso" ${day.base === 'Alto Paraíso' ? 'selected' : ''}>Alto Paraíso</option>
+              <option style="color:black" value="Cavalcante" ${day.base === 'Cavalcante' ? 'selected' : ''}>Cavalcante</option>
               <option style="color:black" value="São Jorge" ${day.base === 'São Jorge' ? 'selected' : ''}>São Jorge</option>
-              <option style="color:black" value="Brasília" ${day.base === 'Brasília' ? 'selected' : ''}>Brasília</option>
-              <option style="color:black" value="Retorno" ${day.base === 'Retorno' ? 'selected' : ''}>Retorno</option>
             </select>
           </div>
           <div class="kanban-daily-stats" id="stats-${day.date}" style="font-size: 11px; color: var(--text-muted, #666); margin-top: 8px; text-align: center; line-height: 1.4; min-height: 32px;"></div>
@@ -697,6 +902,15 @@
       const city1 = c1 === 'Retorno' ? 'Brasília' : c1;
       const city2 = c2 === 'Retorno' ? 'Brasília' : c2;
       if (city1 === city2) return 0;
+
+      // Check dynamic origin distances if one city is Brasília (representing origin)
+      if ((city1 === 'Brasília' || city2 === 'Brasília') && TRIP_CONFIG.originDistances) {
+        const dest = city1 === 'Brasília' ? city2 : city1;
+        if (TRIP_CONFIG.originDistances[dest] !== undefined) {
+          return TRIP_CONFIG.originDistances[dest];
+        }
+      }
+
       const pair = [city1, city2].sort().join('-');
       const dists = {
         'Brasília-Cavalcante': TRIP_CONFIG.distanceBSBtoCavalcante || 320,
@@ -784,7 +998,7 @@
         dailyStats[scheduledDate].trail += a.trailLength;
       }
 
-      kmBreakdownHTML.push(`<div class="calc-breakdown-item" style="color:var(--text-muted); font-size:12px; padding-left:12px; border-left: 2px solid var(--border); margin-left: 6px; margin-top: 4px; margin-bottom: 4px;"><span>↪ ${dayBase} → ${a.name}</span><span class="calc-breakdown-value">ida ${distOneWay}km / volta ${distOneWay}km</span></div>`);
+      kmBreakdownHTML.push(`<div class="calc-breakdown-item" style="color:var(--text-muted); font-size:12px; padding-left:12px; border-left: 2px solid var(--border); margin-left: 6px; margin-top: 4px; margin-bottom: 4px;"><span>↪ ${dayBase} → ${a.name}</span> <span class="calc-breakdown-value">ida ${distOneWay}km / volta ${distOneWay}km</span></div>`);
     });
 
     const totalCarKm = baseToBaseKm + attractionCarKm;
@@ -856,28 +1070,43 @@
       const firstDay = TRIP_DAYS[0];
       const lastDay = TRIP_DAYS[TRIP_DAYS.length - 1];
 
-      let distOrigin = 0;
-      let originLabelText = '';
-      if (firstDay.base === 'Cavalcante') {
-        distOrigin = TRIP_CONFIG.distanceBSBtoCavalcante;
-        originLabelText = `Brasília ➔ ${firstDay.base}`;
-      } else if (firstDay.base === 'Alto Paraíso') {
-        distOrigin = TRIP_CONFIG.distanceBSBtoAltoParaiso;
-        originLabelText = `Brasília ➔ ${firstDay.base}`;
-      } else if (firstDay.base === 'São Jorge') {
-        distOrigin = TRIP_CONFIG.distanceBSBtoSaoJorge;
-        originLabelText = `Brasília ➔ ${firstDay.base}`;
+      // Clean up origin name for better display (remove state/country if it's too long)
+      let originName = TRIP_CONFIG.origin || '-';
+      if (originName.includes(',')) {
+        originName = originName.split(',')[0].trim();
       }
 
-      totalDistance += distOrigin * 2; // Ida e Volta
+      let distToFirstBase = 0;
+      let distFromLastBase = 0;
+
+      // Calculate distance from origin to first base and last base back to origin
+      // Priority: 1. Dynamically calculated distances (originDistances), 2. Default BSB constants
+      const od = TRIP_CONFIG.originDistances || {};
+
+      distToFirstBase = od[firstDay.base] || 0;
+      if (distToFirstBase === 0) {
+        if (firstDay.base === 'Cavalcante') distToFirstBase = TRIP_CONFIG.distanceBSBtoCavalcante;
+        else if (firstDay.base === 'Alto Paraíso') distToFirstBase = TRIP_CONFIG.distanceBSBtoAltoParaiso;
+        else if (firstDay.base === 'São Jorge') distToFirstBase = TRIP_CONFIG.distanceBSBtoSaoJorge;
+      }
+
+      distFromLastBase = od[lastDay.base] || 0;
+      if (distFromLastBase === 0) {
+        if (lastDay.base === 'Cavalcante') distFromLastBase = TRIP_CONFIG.distanceBSBtoCavalcante;
+        else if (lastDay.base === 'Alto Paraíso') distFromLastBase = TRIP_CONFIG.distanceBSBtoAltoParaiso;
+        else if (lastDay.base === 'São Jorge') distFromLastBase = TRIP_CONFIG.distanceBSBtoSaoJorge;
+      }
+
+      totalDistance += distToFirstBase;
+      totalDistance += distFromLastBase;
 
       let mileageHTML = `
-        <li class="stat-mileage-item"><span>${originLabelText}</span><span>${distOrigin} km</span></li>
-        <li class="stat-mileage-item"><span>${firstDay.base === 'Cavalcante' ? firstDay.base : lastDay.base} ➔ Brasília</span><span>${distOrigin} km</span></li>
+        <li class="stat-mileage-item"><span>${originName} ➔ ${firstDay.base}</span><span>${distToFirstBase} km</span></li>
       `;
 
-      // Daily Attraction distances
-      TRIP_DAYS.forEach(day => {
+      // Daily Attraction distances and inter-base travel
+      TRIP_DAYS.forEach((day, index) => {
+        // Attractions for the day
         const dayCards = state.kanbanCards[day.date + '-full'] || [];
         dayCards.concat(state.kanbanCards[day.date + '-morning'] || [], state.kanbanCards[day.date + '-afternoon'] || []).forEach(attrId => {
           const attr = ATTRACTIONS.find(a => a.id === attrId);
@@ -889,34 +1118,39 @@
 
             const dist = attr.distances[baseKey] || 0;
             totalDistance += dist * 2; // Base to Attr and Back
-            mileageHTML += `<li class="stat-mileage-item"><span>${baseName} ➔ ${attr.name}</span><span>${dist * 2} km (i/v)</span></li>`;
+            mileageHTML += `<li class="stat-mileage-item"><span>${baseName} ➔ ${attr.name} (i/v)</span><span>${dist * 2} km</span></li>`;
           }
         });
 
-        // Inter-base travel (if base changes)
-        const dayIndex = TRIP_DAYS.indexOf(day);
-        if (dayIndex > 0) {
-          const prevDay = TRIP_DAYS[dayIndex - 1];
-          if (day.base !== prevDay.base && day.base !== 'Retorno' && prevDay.base !== 'Retorno') {
+        // Inter-base travel (if base changes for the next day)
+        if (index < TRIP_DAYS.length - 1) {
+          const nextDay = TRIP_DAYS[index + 1];
+          if (day.base !== nextDay.base) {
             let interDist = 0;
-            let interLabel = '';
-            if ((day.base === 'Cavalcante' && prevDay.base === 'Alto Paraíso') || (day.base === 'Alto Paraíso' && prevDay.base === 'Cavalcante')) {
+            if ((day.base === 'Cavalcante' && nextDay.base === 'Alto Paraíso') || (day.base === 'Alto Paraíso' && nextDay.base === 'Cavalcante')) {
               interDist = TRIP_CONFIG.distanceCavalcanteToAltoParaiso;
-              interLabel = `${prevDay.base} ➔ ${day.base}`;
-            } else if ((day.base === 'São Jorge' && prevDay.base === 'Alto Paraíso') || (day.base === 'Alto Paraíso' && prevDay.base === 'São Jorge')) {
+            } else if ((day.base === 'São Jorge' && nextDay.base === 'Alto Paraíso') || (day.base === 'Alto Paraíso' && nextDay.base === 'São Jorge')) {
               interDist = TRIP_CONFIG.distanceAltoParaisoToSaoJorge;
-              interLabel = `${prevDay.base} ➔ ${day.base}`;
+            } else if ((day.base === 'Cavalcante' && nextDay.base === 'São Jorge') || (day.base === 'São Jorge' && nextDay.base === 'Cavalcante')) {
+              // Approximate distance via AP (90 + 36)
+              interDist = TRIP_CONFIG.distanceCavalcanteToAltoParaiso + TRIP_CONFIG.distanceAltoParaisoToSaoJorge;
             }
+
             if (interDist > 0) {
               totalDistance += interDist;
-              mileageHTML += `<li class="stat-mileage-item"><span>${interLabel}</span><span>${interDist} km</span></li>`;
+              mileageHTML += `<li class="stat-mileage-item"><span>${day.base} ➔ ${nextDay.base}</span><span>${interDist} km</span></li>`;
             }
           }
         }
       });
 
-      // Mileage detail is now only for print
-      // if (mileageContainer) mileageContainer.innerHTML = mileageHTML;
+      // Return leg
+      const displayOrigin = originName;
+      mileageHTML += `<li class="stat-mileage-item"><span>${lastDay.base} ➔ ${displayOrigin}</span><span>${distFromLastBase} km</span></li>`;
+
+      // Update mileage breakdown in modal if visible/printed
+      const mileageContainer = $('#mileage-breakdown-list');
+      if (mileageContainer) mileageContainer.innerHTML = mileageHTML;
     }
 
     const fuelCostTotal = totalDistance * fuelCostPerKm;
@@ -1016,7 +1250,7 @@
     CAR_OPTIONS.forEach((car) => {
       const card = document.createElement('div');
       card.className = 'quotation-card' + (state.selectedCar === car.id ? ' selected' : '');
-      const tripDuration = TRIP_DAYS.length || 0;
+      const tripDuration = car.totalDays || TRIP_DAYS.length || 0;
       card.innerHTML = `
         <div class="quot-card-header">
           <div class="quot-rental-badge">${car.rental}</div>
@@ -1265,9 +1499,9 @@
       tripConfig: {
         startDate: TRIP_CONFIG.startDate,
         endDate: TRIP_CONFIG.endDate,
-        adults: TRIP_CONFIG.adults,
-        children: TRIP_CONFIG.children,
-        origin: TRIP_CONFIG.origin
+        travelers: TRIP_CONFIG.travelers,
+        origin: TRIP_CONFIG.origin,
+        originDistances: TRIP_CONFIG.originDistances
       }
     };
     localStorage.setItem('chapada_trip_planner_state', JSON.stringify(dataToSave));
@@ -1282,12 +1516,17 @@
 
       // Restore Config
       if (data.tripConfig) {
-        TRIP_CONFIG.startDate = data.tripConfig.startDate;
-        TRIP_CONFIG.endDate = data.tripConfig.endDate;
-        TRIP_CONFIG.adults = data.tripConfig.adults;
-        TRIP_CONFIG.children = data.tripConfig.children;
+        // If the saved state is using the old hardcoded May/June dates, ignore them to allow new dynamic defaults
+        const isOldHardcoded = data.tripConfig.startDate === '2026-05-30' && data.tripConfig.endDate === '2026-06-07';
+
+        if (!isOldHardcoded) {
+          TRIP_CONFIG.startDate = data.tripConfig.startDate;
+          TRIP_CONFIG.endDate = data.tripConfig.endDate;
+        }
+
+        TRIP_CONFIG.travelers = data.tripConfig.travelers || (data.tripConfig.adults + data.tripConfig.children) || 4;
         TRIP_CONFIG.origin = data.tripConfig.origin;
-        TRIP_CONFIG.travelers = TRIP_CONFIG.adults + TRIP_CONFIG.children;
+        TRIP_CONFIG.originDistances = data.tripConfig.originDistances || null;
         TRIP_CONFIG.couples = Math.ceil(TRIP_CONFIG.travelers / 2);
 
         regenerateTripDays(TRIP_CONFIG.startDate, TRIP_CONFIG.endDate);
