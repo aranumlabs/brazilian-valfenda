@@ -7,7 +7,7 @@ export interface Attraction {
     trailLength: number;
     duration: string;
     durationSlots: 'half' | 'full';
-    difficulty: 'Fácil' | 'Moderada' | 'Difícil' | 'Moderada-Difícil' | 'Muito Difícil';
+    difficulty: 'Fácil' | 'Fácil-Moderada' | 'Moderada' | 'Difícil' | 'Moderada-Difícil' | 'Muito Difícil';
     entranceFee: number;
     guideRequired: boolean;
     guideCost: number;

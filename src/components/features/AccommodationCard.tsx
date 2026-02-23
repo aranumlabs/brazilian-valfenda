@@ -24,7 +24,7 @@ export const AccommodationCard: React.FC<AccommodationCardProps> = ({ accommodat
             </div>
 
             <div className="md:w-2/3 flex flex-col">
-                <CardContent className="p-8 flex-grow">
+                <CardContent className="p-5 md:p-8 flex-grow">
                     <div className="flex justify-between items-start mb-4">
                         <div>
                             <div className="flex items-center gap-2 mb-1">
@@ -59,7 +59,7 @@ export const AccommodationCard: React.FC<AccommodationCardProps> = ({ accommodat
                     </div>
                 </CardContent>
 
-                <div className="px-8 py-5 bg-white/[0.02] border-t border-white/5 flex items-center justify-between">
+                <div className="px-5 py-4 md:px-8 md:py-5 bg-white/[0.02] border-t border-white/5 flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <span className="text-xs text-slate-500">Reserva Confirmada via Booking.com</span>
                     </div>

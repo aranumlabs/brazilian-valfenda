@@ -26,7 +26,7 @@ export const CostBreakdown: React.FC<CostBreakdownProps> = ({
 
     return (
         <Card className="max-w-xl mx-auto border-brand-earth-ochre/20">
-            <CardContent className="p-8">
+            <CardContent className="p-4 md:p-8">
                 <div className="flex items-center gap-3 mb-8">
                     <div className="p-2 bg-brand-earth-ochre/20 rounded-lg">
                         <Wallet className="w-5 h-5 text-brand-earth-ochre" />
