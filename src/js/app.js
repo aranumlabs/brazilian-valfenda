@@ -14,6 +14,7 @@
     selectedCar: 'localiza-tcross',
     selectedAccommodations: { Cavalcante: 'pousada-vale-araras', 'Alto Paraíso': ['camelot', 'pousada-dente-leao'] }, // Need a way to hold multiple, or just hardcode for calculation
     attractionsInKanban: new Set(),
+    kanbanCards: {},
     leafletMap: null,
     markers: [],
   };
