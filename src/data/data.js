@@ -1147,68 +1147,7 @@ const ATTRACTIONS = [
                 },
                 "googlePhotosUrl": "https://www.google.com/search?q=Encontro+das+Águas+fotos+chapada+dos+veadeiros&tbm=isch"
         },
-        {
-                "id": "gota-satsom",
-                "name": "Gota Sat Som",
-                "region": "Alto Paraíso",
-                "type": "experiencia",
-                "description": "Templo terapêutico em formato de gota. Referência em sound healing, música de elevação e silêncio.",
-                "trailLength": 0,
-                "duration": "2h",
-                "durationSlots": "half",
-                "difficulty": "Fácil",
-                "entranceFee": 80,
-                "guideRequired": false,
-                "guideCost": 0,
-                "guideGroupSize": 0,
-                "fourWheelRequired": false,
-                "bestTime": "Fim de tarde / Noite",
-                "tips": "Verificar a programação no Instagram @gota.satsom. Experiência sonora toda quarta às 18h.",
-                "lat": -14.131,
-                "lng": -47.515,
-                "images": [
-                        "https://images.unsplash.com/photo-1616851179047-ee8dcc1adfcb?q=80&w=600&auto=format&fit=crop",
-                        "https://images.unsplash.com/photo-1620050867807-6f8e71887e47?q=80&w=600&auto=format&fit=crop",
-                        "https://images.unsplash.com/photo-1511497584788-876760111969?q=80&w=600&auto=format&fit=crop"
-                ],
-                "distances": {
-                        "altoParaiso": 0,
-                        "saoJorge": 50,
-                        "cavalcante": 57
-                },
-                "googlePhotosUrl": "https://www.google.com/search?q=Gota+Sat+Som+fotos+chapada+dos+veadeiros&tbm=isch"
-        },
-        {
-                "id": "jardim-maytrea",
-                "name": "Jardim de Maytrea",
-                "region": "Alto Paraíso",
-                "type": "mirante",
-                "description": "Cartão postal da Chapada. Famoso por suas veredas ecológicas e montanhas pitorescas. Ideal para contemplação e fotos.",
-                "trailLength": 0,
-                "duration": "1h",
-                "durationSlots": "half",
-                "difficulty": "Fácil",
-                "entranceFee": 0,
-                "guideRequired": false,
-                "guideCost": 0,
-                "guideGroupSize": 0,
-                "fourWheelRequired": false,
-                "bestTime": "Fim de tarde (Pôr do Sol)",
-                "tips": "Localizado na beira da estrada (GO-239) entre Alto Paraíso e São Jorge. Entrada gratuita.",
-                "lat": -14.135,
-                "lng": -47.635,
-                "images": [
-                        "https://acrosstheuniverse.blog.br/wp-content/uploads/2021/05/jardim-de-maytrea-chapada-dos-veadeiros-1.jpg",
-                        "https://goiasturismo.go.gov.br/images/atracoes/alto-paraiso-de-goias/jardim-de-maytrea.jpg",
-                        "https://media-cdn.tripadvisor.com/media/photo-s/0e/69/9b/6c/jardim-de-maytreia.jpg"
-                ],
-                "distances": {
-                        "altoParaiso": 22,
-                        "saoJorge": 17,
-                        "cavalcante": 109
-                },
-                "googlePhotosUrl": "https://www.google.com/search?q=Jardim+de+Maytrea+fotos+chapada+dos+veadeiros&tbm=isch"
-        },
+
         {
                 "id": "lajeado",
                 "name": "Lajeado",
@@ -1547,36 +1486,7 @@ const ATTRACTIONS = [
                 },
                 "googlePhotosUrl": "https://www.google.com/search?q=Gota+Sat+Som+fotos+chapada+dos+veadeiros&tbm=isch"
         },
-        {
-                "id": "mirante-sao-jorge",
-                "name": "Barzinho Mirante São Jorge",
-                "region": "São Jorge",
-                "type": "mirante",
-                "description": "Mirante do Pôr do Sol com vista privilegiada para o Parque Nacional. Cerveja gelada, drinks e música.",
-                "trailLength": 0,
-                "duration": "2-3h",
-                "durationSlots": "half",
-                "difficulty": "Fácil",
-                "entranceFee": 30,
-                "guideRequired": false,
-                "guideCost": 0,
-                "guideGroupSize": 0,
-                "fourWheelRequired": false,
-                "bestTime": "Fim de tarde (Pôr do Sol)",
-                "tips": "Chegar um pouco antes do pôr do sol para garantir lugar. @mirante.saojorge",
-                "lat": -14.1650,
-                "lng": -47.8100,
-                "images": [
-                        "https://images.unsplash.com/photo-1473448912268-2022ce9509d8?q=80&w=600&auto=format&fit=crop",
-                        "https://images.unsplash.com/photo-1501785888041-af3ef285b470?q=80&w=600&auto=format&fit=crop"
-                ],
-                "distances": {
-                        "altoParaiso": 35,
-                        "saoJorge": 1,
-                        "cavalcante": 68
-                },
-                "googlePhotosUrl": "https://www.google.com/search?q=Mirante+São+Jorge+fotos+chapada+dos+veadeiros&tbm=isch"
-        },
+
         {
                 "id": "complexo-macacao",
                 "name": "Complexo do Macacão",
@@ -1618,6 +1528,7 @@ const ACCOMMODATIONS = [
                 name: 'Pousada Camelot',
                 city: 'Alto Paraíso',
                 pricePerNight: 329.00,
+                totalPrice: 658.00,
                 checkIn: '30/05/2026',
                 checkOut: '01/06/2026',
                 breakfast: true,
@@ -1631,6 +1542,7 @@ const ACCOMMODATIONS = [
                 name: 'Pousada Vale das Araras',
                 city: 'Cavalcante',
                 pricePerNight: 330.00,
+                totalPrice: 990.00,
                 checkIn: '01/06/2026',
                 checkOut: '04/06/2026',
                 breakfast: true,
@@ -1644,6 +1556,7 @@ const ACCOMMODATIONS = [
                 name: 'Pousada Dente de Leão',
                 city: 'Alto Paraíso',
                 pricePerNight: 400.00,
+                totalPrice: 1200.00,
                 checkIn: '04/06/2026',
                 checkOut: '07/06/2026',
                 breakfast: true,
@@ -1662,7 +1575,7 @@ const CAR_OPTIONS = [
                 id: 'localiza-tcross',
                 name: 'VW T-Cross 1.0 Turbo ou similar',
                 type: 'Grupo GX - SUV Compacto',
-                dailyRate: 254.03,
+                dailyRate: 254.03375,
                 totalDays: 8,
                 rental: 'Localiza',
                 features: [

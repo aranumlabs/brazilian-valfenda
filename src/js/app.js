@@ -805,13 +805,28 @@
 
     // Costs
     let entranceCost = 0, guideCost = 0, carCost = 0, accCost = 0;
+
+    // Group logic for Kalunga complex (Santa Bárbara, Capivara, Candaru)
+    const kalungaGroup = ['santa-barbara', 'capivara', 'candaru'];
+    let kalungaCount = 0;
+
     inKanban.forEach((a) => {
       entranceCost += a.entranceFee * TRIP_CONFIG.travelers;
-      if (a.guideRequired) guideCost += a.guideCost;
+      if (a.guideRequired) {
+        if (kalungaGroup.includes(a.id)) {
+          kalungaCount++;
+        } else {
+          guideCost += a.guideCost;
+        }
+      }
     });
 
+    if (kalungaCount > 0) {
+      guideCost += 200; // Single guide fee for any combination of the 3
+    }
+
     const car = CAR_OPTIONS.find((c) => c.id === state.selectedCar);
-    const tripDuration = TRIP_DAYS.length || 0;
+    const tripDuration = car?.totalDays || TRIP_DAYS.length || 0;
     if (car) carCost = parseFloat(car.dailyRate || 0) * tripDuration;
 
     // Sum all 3 accommodations automatically
@@ -825,7 +840,7 @@
       const nights = Math.round((date2 - date1) / (1000 * 60 * 60 * 24));
 
       if (nights > 0) {
-        const cost = acc.pricePerNight * nights * TRIP_CONFIG.couples;
+        const cost = (acc.totalPrice || (acc.pricePerNight * nights)) * TRIP_CONFIG.couples;
         accCost += cost;
         accBreakdownHTML += `<div class="calc-breakdown-item" style="color:var(--text-muted); font-size:12px; padding-left:12px; border-left: 2px solid var(--border); margin-left: 6px; margin-top: 4px; margin-bottom: 4px;"><span>${acc.name} (${nights} noites)</span><span class="calc-breakdown-value">R$ ${cost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span></div>`;
       }
@@ -933,19 +948,40 @@
 
     const entranceBreakdownHTML = inKanban
       .filter((a) => a.entranceFee > 0)
+      .sort((a, b) => {
+        const rA = a.region || '';
+        const rB = b.region || '';
+        if (rA !== rB) return rA.localeCompare(rB);
+        return (a.name || '').localeCompare(b.name || '');
+      })
       .map((a) => `
         <div class="calc-breakdown-item" style="color:var(--text-muted); font-size:11px; padding-left:12px; border-left: 2px solid var(--border); margin-left: 6px; margin-top: 2px; display: flex; justify-content: space-between; align-items: center;">
-          <span>↪ ${a.name}</span>
+          <span>↪ ${a.region}: ${a.name}</span>
           <span class="calc-breakdown-value">R$ ${(a.entranceFee * TRIP_CONFIG.travelers).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
         </div>`)
       .join('');
 
-    const guideBreakdownHTML = inKanban
-      .filter((a) => a.guideRequired && a.guideCost > 0)
-      .map((a) => `
+    const guideBreakdownItems = [];
+    const kalungaAttractions = inKanban.filter(a => kalungaGroup.includes(a.id) && a.guideRequired);
+
+    inKanban.filter(a => a.guideRequired && a.guideCost > 0).forEach(a => {
+      if (kalungaGroup.includes(a.id)) return;
+      guideBreakdownItems.push({ name: a.name, cost: a.guideCost });
+    });
+
+    if (kalungaAttractions.length > 0) {
+      guideBreakdownItems.push({
+        name: kalungaAttractions.map(a => a.name.replace('Cachoeira ', '')).join(' + '),
+        cost: 200
+      });
+    }
+
+    guideBreakdownItems.sort((a, b) => a.name.localeCompare(b.name));
+
+    const guideBreakdownHTML = guideBreakdownItems.map(item => `
         <div class="calc-breakdown-item" style="color:var(--text-muted); font-size:11px; padding-left:12px; border-left: 2px solid var(--border); margin-left: 6px; margin-top: 2px; display: flex; justify-content: space-between; align-items: center;">
-          <span>↪ ${a.name}</span>
-          <span class="calc-breakdown-value">R$ ${a.guideCost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+          <span>↪ ${item.name}</span>
+          <span class="calc-breakdown-value">R$ ${item.cost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
         </div>`)
       .join('');
 
@@ -1036,8 +1072,9 @@
       <div class="quot-icon">${acc.image}</div>
         <div class="quot-name">${acc.name}</div>
         <div class="quot-type">⭐ ${acc.rating}</div>
-        <div class="quot-price">R$ ${acc.pricePerNight}</div>
-        <div class="quot-price-unit">/noite por quarto</div>
+        <div class="quot-price">R$ ${acc.totalPrice ? acc.totalPrice.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : acc.pricePerNight.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+        <div class="quot-price-unit">${acc.totalPrice ? 'total por quarto' : '/noite por quarto'}</div>
+        ${acc.totalPrice ? `<div style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;">(R$ ${acc.pricePerNight.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} / diária)</div>` : ''}
         ${acc.breakfast ? '<div class="quot-breakfast-badge">☕ Café da Manhã Incluso</div>' : ''}
     <p style="margin-top:8px;font-size:0.8rem;color:var(--text-muted)">${acc.description}</p>
         ${hasUrl ? '<div class="quot-link">🔗 Ver no Booking.com ↗</div>' : ''}
@@ -1111,9 +1148,10 @@
         .day-date { font-size: 0.8rem; opacity: 0.8; }
         .day-base { font-size: 0.7rem; margin-top: 10px; font-weight: 600; color: #ffcc33; }
         
-        .slots { flex: 1; display: flex; gap: 0; }
-        .slot { flex: 1; padding: 10px; border-left: 1px solid #eee; min-height: 100px; }
+        .slots { flex: 1; display: flex; gap: 10px; }
+        .slot { flex: 1; padding: 10px; background: #fbfbfb; border-radius: 8px; min-height: 100px; }
         .slot-title { font-size: 0.65rem; text-transform: uppercase; color: #888; margin-bottom: 8px; font-weight: 700; }
+        .calc-breakdown-item { page-break-inside: avoid; break-inside: avoid; margin-bottom: 4px; }
         
         .attr-card { background: white; border: 1px solid #eee; border-radius: 8px; padding: 10px; margin-bottom: 10px; position: relative; }
         .attr-name { font-weight: 700; font-size: 0.9rem; margin-bottom: 4px; color: #0a110d; }
