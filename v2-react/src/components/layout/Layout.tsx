@@ -15,7 +15,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                         <div className="flex items-center gap-2">
                             <Compass className="w-8 h-8 text-brand-earth-ochre animate-pulse" />
                             <span className="font-display font-bold text-xl tracking-tight bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
-                                Brazilian Valfenda
+                                Chapadeiros Voadores
                             </span>
                         </div>
                         <div className="hidden md:flex items-center gap-8">

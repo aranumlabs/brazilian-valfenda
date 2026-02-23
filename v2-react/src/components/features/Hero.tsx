@@ -20,11 +20,10 @@ export const Hero: React.FC<HeroProps> = ({ totalCost, perPersonCost, totalDays,
             <div className="max-w-7xl mx-auto">
                 <div className="text-center mb-12">
                     <h1 className="font-display text-5xl md:text-7xl font-black text-white mb-6 tracking-tighter">
-                        Brazilian <span className="text-brand-earth-ochre italic">Valfenda</span>
+                        Chapadeiros <span className="text-brand-earth-ochre italic">Voadores</span>
                     </h1>
                     <p className="text-slate-400 text-lg md:text-xl max-w-2xl mx-auto leading-relaxed">
-                        Planejamento completo para a jornada definitiva em Goiás.
-                        Entre desfiladeiros, cristais e águas sagradas.
+                        Uma viagem até Valfenda Brasileira
                     </p>
                 </div>
 

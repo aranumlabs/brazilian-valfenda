@@ -55,3 +55,9 @@ export interface TripConfig {
     distanceBSBtoAltoParaiso: number;
     distanceBSBtoSaoJorge: number;
 }
+
+export type PeriodId = 'morning' | 'afternoon' | 'evening';
+
+export interface Itinerary {
+    [key: string]: string[]; // key: "YYYY-MM-DD-periodId"
+}
