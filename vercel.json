@@ -1,6 +1,9 @@
 {
     "version": 2,
-    "outputDirectory": ".",
+    "framework": null,
+    "buildCommand": "mkdir -p .output && cp -r . .output",
+    "outputDirectory": ".output",
+    "installCommand": "echo 'Instalação pulada'",
     "rewrites": [
         {
             "source": "/(.*)",

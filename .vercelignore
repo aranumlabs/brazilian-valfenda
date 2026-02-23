@@ -1,0 +1,11 @@
+v2-react/
+node_modules/
+dist/
+.vite/
+*.js
+*.py
+*.ts
+!src/js/*.js
+!src/data/*.js
+!index.html
+!assets/**
