@@ -1,4 +1,4 @@
-import { Accommodation } from './types';
+import type { Accommodation } from './types';
 
 export const ACCOMMODATIONS: Accommodation[] = [
     {

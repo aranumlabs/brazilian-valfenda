@@ -1,4 +1,4 @@
-import { TripConfig } from './types';
+import type { TripConfig } from './types';
 
 export const TRIP_CONFIG: TripConfig = {
     startDate: '2026-05-30',
